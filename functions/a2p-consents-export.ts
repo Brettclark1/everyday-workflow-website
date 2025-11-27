@@ -12,23 +12,41 @@ export async function onRequest(context: {
 }) {
   const { request, env } = context;
 
-  // 1) Check admin token from Authorization header
+  // Safety check: make sure the secret is actually loaded
+  if (!env.ADMIN_EXPORT_TOKEN) {
+    return new Response("Server config error: ADMIN_EXPORT_TOKEN is not set", {
+      status: 500,
+    });
+  }
+
+  // --- 1) Read token from Authorization header OR ?token= query param ---
+
+  // Header: Authorization: Bearer <token>
   const authHeader = request.headers.get("authorization") || "";
-  const token = authHeader.startsWith("Bearer ")
-    ? authHeader.slice("Bearer ".length).trim()
-    : "";
+  let headerToken = "";
+
+  if (/^Bearer\s+/i.test(authHeader)) {
+    headerToken = authHeader.substring(7).trim(); // strip "Bearer "
+  }
+
+  const url = new URL(request.url);
+  const queryToken = url.searchParams.get("token") || "";
+
+  // Prefer header token, fall back to query token
+  const token = headerToken || queryToken;
 
   if (!token || token !== env.ADMIN_EXPORT_TOKEN) {
     return new Response("Unauthorized", { status: 401 });
   }
 
   try {
-    // 2) Build Supabase REST URL for the a2p_consents table
-    // VITE_SUPABASE_URL looks like: https://xxxx.supabase.co
+    // --- 2) Build Supabase REST URL for the a2p_consents table ---
+
     const baseUrl = env.VITE_SUPABASE_URL.replace(/\/+$/, "");
     const restUrl = `${baseUrl}/rest/v1/a2p_consents?select=*`;
 
-    // 3) Fetch all consents using the service role key (bypasses RLS)
+    // --- 3) Fetch all consents with the service role key (bypasses RLS) ---
+
     const supabaseRes = await fetch(restUrl, {
       headers: {
         apikey: env.SUPABASE_SERVICE_ROLE_KEY,
@@ -47,7 +65,8 @@ export async function onRequest(context: {
 
     const rows: any[] = await supabaseRes.json();
 
-    // 4) Define which columns go into the CSV (and in what order)
+    // --- 4) Define CSV columns & order ---
+
     const headers = [
       "id",
       "phone",
@@ -60,14 +79,14 @@ export async function onRequest(context: {
       "created_at",
     ];
 
-    // 5) Convert rows -> CSV string
+    // --- 5) Convert rows -> CSV string ---
+
     const csvLines = [headers.join(",")];
 
     for (const row of rows) {
       const line = headers
         .map((field) => {
           const value = row[field] ?? "";
-          // Escape double quotes and wrap in quotes
           const safe = String(value).replace(/"/g, '""');
           return `"${safe}"`;
         })
@@ -76,10 +95,10 @@ export async function onRequest(context: {
     }
 
     const csv = csvLines.join("\n");
-
     const dateStamp = new Date().toISOString().slice(0, 10);
 
-    // 6) Return CSV response
+    // --- 6) Return CSV as a file download ---
+
     return new Response(csv, {
       headers: {
         "Content-Type": "text/csv; charset=utf-8",
@@ -91,3 +110,4 @@ export async function onRequest(context: {
     return new Response("Internal Server Error", { status: 500 });
   }
 }
+
