@@ -1,7 +1,7 @@
 import { ArrowRight, Bot, MessageSquare, Calendar, BarChart3, CheckCircle2 } from 'lucide-react';
 import { Link } from '../router';
 // redeploy trigger
-
+// redploy trigger
 export function Home() {
   return (
     <div>
