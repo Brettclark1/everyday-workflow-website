@@ -61,6 +61,7 @@ export async function onRequest(context: {
     const restUrl = `${baseUrl}/rest/v1/a2p_consents?select=*`;
 
     // --- 3) Fetch all consents with the service role key (bypasses RLS) ---
+    
 if (!env.SUPABASE_SERVICE_ROLE_KEY) {
   return new Response(
     "SUPABASE_SERVICE_ROLE_KEY missing in Cloudflare environment",
