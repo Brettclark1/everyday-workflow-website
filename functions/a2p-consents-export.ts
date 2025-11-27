@@ -21,7 +21,6 @@ export async function onRequest(context: {
 
   // --- 1) Read token from Authorization header OR ?token= query param ---
 
-  // Header: Authorization: Bearer <token>
   const authHeader = request.headers.get("authorization") || "";
   let headerToken = "";
 
@@ -33,10 +32,26 @@ export async function onRequest(context: {
   const queryToken = url.searchParams.get("token") || "";
 
   // Prefer header token, fall back to query token
-  const token = headerToken || queryToken;
+  const rawReceived = (headerToken || queryToken || "").trim();
+  const rawExpected = (env.ADMIN_EXPORT_TOKEN || "").trim();
 
-  if (!token || token !== env.ADMIN_EXPORT_TOKEN) {
-    return new Response("Unauthorized", { status: 401 });
+  if (!rawExpected) {
+    return new Response(
+      "Server config error: ADMIN_EXPORT_TOKEN is empty after trim()",
+      { status: 500 }
+    );
+  }
+
+  if (!rawReceived) {
+    return new Response("Unauthorized (receivedLen=0)", { status: 401 });
+  }
+
+  if (rawReceived !== rawExpected) {
+    // Debug only: show lengths, not the secret itself
+    return new Response(
+      `Unauthorized (receivedLen=${rawReceived.length} expectedLen=${rawExpected.length})`,
+      { status: 401 }
+    );
   }
 
   try {
@@ -79,8 +94,6 @@ export async function onRequest(context: {
       "created_at",
     ];
 
-    // --- 5) Convert rows -> CSV string ---
-
     const csvLines = [headers.join(",")];
 
     for (const row of rows) {
@@ -97,8 +110,6 @@ export async function onRequest(context: {
     const csv = csvLines.join("\n");
     const dateStamp = new Date().toISOString().slice(0, 10);
 
-    // --- 6) Return CSV as a file download ---
-
     return new Response(csv, {
       headers: {
         "Content-Type": "text/csv; charset=utf-8",
@@ -110,4 +121,3 @@ export async function onRequest(context: {
     return new Response("Internal Server Error", { status: 500 });
   }
 }
-
