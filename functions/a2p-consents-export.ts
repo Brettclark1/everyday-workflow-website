@@ -95,7 +95,7 @@ if (!env.SUPABASE_SERVICE_ROLE_KEY) {
 
     const rows: any[] = await supabaseRes.json();
 
-    // --- 4) Define CSV columns & order ---
+    // --- 4) Define CSV columns & order (A2P export) --- 
 
     const headers = [
       "id",
