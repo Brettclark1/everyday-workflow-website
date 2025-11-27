@@ -77,13 +77,21 @@ if (!env.SUPABASE_SERVICE_ROLE_KEY) {
       },
     });
 
-    if (!supabaseRes.ok) {
-      const text = await supabaseRes.text();
-      console.error("Supabase error:", supabaseRes.status, text);
-      return new Response("Error fetching data from Supabase", {
-        status: 500,
-      });
+   if (!supabaseRes.ok) {
+  const text = await supabaseRes.text();
+
+  // TEMP: show full Supabase error to help debug
+  return new Response(
+    `Supabase error: ${supabaseRes.status}\n\n${text}`,
+    {
+      status: 500,
+      headers: {
+        "Content-Type": "text/plain; charset=utf-8",
+      },
     }
+  );
+}
+
 
     const rows: any[] = await supabaseRes.json();
 
